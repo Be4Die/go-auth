@@ -1,18 +1,19 @@
 package httpv1
 
 import (
-	"context"
-	"fmt"
-	"log/slog"
-	"net/http/httptest"
-	"strings"
-	"testing"
+    "context"
+    "fmt"
+    "log/slog"
+    "net/http/httptest"
+    "strings"
+    "testing"
+    "time"
 
-	"go-auth/internal/app"
-	"go-auth/internal/app/usecase"
-	"go-auth/internal/domain"
+    "go-auth/internal/app"
+    "go-auth/internal/app/usecase"
+    "go-auth/internal/domain"
 
-	"github.com/gin-gonic/gin"
+    "github.com/gin-gonic/gin"
 )
 
 type memRepo struct{ users map[string]*domain.User }
@@ -47,6 +48,9 @@ type fakeToken struct{}
 func (fakeToken) GenerateAccessToken(userID string) (string, error)  { return "acc:" + userID, nil }
 func (fakeToken) GenerateRefreshToken(userID string) (string, error) { return "ref:" + userID, nil }
 func (fakeToken) ValidateToken(token string) (string, error)         { return "", nil }
+func (fakeToken) ValidateRefresh(token string) (string, error)       { return "id-1", nil }
+func (fakeToken) AccessTTL() time.Duration                           { return time.Minute }
+func (fakeToken) RefreshTTL() time.Duration                          { return 7 * 24 * time.Hour }
 
 func TestRoutes_RegisterAndLogin(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -54,9 +58,9 @@ func TestRoutes_RegisterAndLogin(t *testing.T) {
 
 	repo := &memRepo{}
 	regUC := usecase.NewRegisterUserUseCase(slog.Default(), repo, app.PasswordService(fakePwd{}))
-	logUC := usecase.NewLoginUserUseCase(slog.Default(), repo, app.PasswordService(fakePwd{}), app.TokenService(fakeToken{}))
+    logUC := usecase.NewLoginUserUseCase(slog.Default(), repo, app.PasswordService(fakePwd{}), app.TokenService(fakeToken{}), nil)
 
-	h := NewAuthHandler(slog.Default(), regUC, logUC)
+    h := NewAuthHandler(slog.Default(), regUC, logUC, nil, nil)
 	h.RegisterRoutes(r.Group("/api/v1"))
 
 	w := httptest.NewRecorder()

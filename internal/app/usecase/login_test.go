@@ -1,12 +1,13 @@
 package usecase
 
 import (
-	"context"
-	"errors"
-	"go-auth/internal/app"
-	"go-auth/internal/domain"
-	"log/slog"
-	"testing"
+    "context"
+    "errors"
+    "time"
+    "go-auth/internal/app"
+    "go-auth/internal/domain"
+    "log/slog"
+    "testing"
 )
 
 type fakeToken struct{}
@@ -14,6 +15,9 @@ type fakeToken struct{}
 func (fakeToken) GenerateAccessToken(userID string) (string, error)  { return "acc:" + userID, nil }
 func (fakeToken) GenerateRefreshToken(userID string) (string, error) { return "ref:" + userID, nil }
 func (fakeToken) ValidateToken(token string) (string, error)         { return "", nil }
+func (fakeToken) ValidateRefresh(token string) (string, error)       { return "id-1", nil }
+func (fakeToken) AccessTTL() time.Duration                           { return time.Minute }
+func (fakeToken) RefreshTTL() time.Duration                          { return 7 * 24 * time.Hour }
 
 type fakePwd2 struct{}
 
@@ -35,7 +39,7 @@ func (r *memRepo2) FindByEmail(ctx context.Context, email string) (*domain.User,
 func TestLogin_Success(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(testWriter{}, nil))
 	repo := &memRepo2{u: &domain.User{ID: "id-1", Email: "u@ex.com", Password: "p"}}
-	uc := NewLoginUserUseCase(log, repo, app.PasswordService(fakePwd2{}), app.TokenService(fakeToken{}))
+    uc := NewLoginUserUseCase(log, repo, app.PasswordService(fakePwd2{}), app.TokenService(fakeToken{}), nil)
 	res, err := uc.Handle(context.Background(), LoginUserCmd{Email: "u@ex.com", Password: "p"})
 	if err != nil || res.AccessToken == "" || res.RefreshToken == "" {
 		t.Fatalf("login failed: %v", err)
@@ -45,7 +49,7 @@ func TestLogin_Success(t *testing.T) {
 func TestLogin_InvalidPassword(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(testWriter{}, nil))
 	repo := &memRepo2{u: &domain.User{ID: "id-1", Email: "u@ex.com", Password: "p"}}
-	uc := NewLoginUserUseCase(log, repo, app.PasswordService(fakePwd2{}), app.TokenService(fakeToken{}))
+    uc := NewLoginUserUseCase(log, repo, app.PasswordService(fakePwd2{}), app.TokenService(fakeToken{}), nil)
 	if _, err := uc.Handle(context.Background(), LoginUserCmd{Email: "u@ex.com", Password: "wrong"}); err == nil {
 		t.Fatalf("expected invalid credentials")
 	}
