@@ -1,0 +1,43 @@
+services:
+  auth-service:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_ENV=development
+      - HTTP_PORT=8080
+      - DATABASE_URL=postgres://auth_user:auth_pass@postgres:5432/auth_db?sslmode=disable
+      - JWT_ACCESS_SECRET=local-access-secret
+      - JWT_REFRESH_SECRET=local-refresh-secret
+      - BCRYPT_COST=12
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - auth-net
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=auth_user
+      - POSTGRES_PASSWORD=auth_pass
+      - POSTGRES_DB=auth_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    networks:
+      - auth-net
+
+networks:
+  auth-net:
+
+volumes:
+  postgres_data:
