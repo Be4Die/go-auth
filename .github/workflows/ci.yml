@@ -30,7 +30,7 @@ jobs:
           go env -w GOPROXY=https://proxy.golang.org,direct
           go env -w GOSUMDB=sum.golang.org
       - name: Cache Go modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/go/pkg/mod
